@@ -4,7 +4,7 @@ use Mojo::Base 'Mojo::EventEmitter';
 use Carp qw(croak);
 use Mojo::Message::Request;
 use Mojo::Message::Response;
-use Mojo::Util qw(deprecated);
+use Mojo::Util qw(deprecated network_contains);
 
 has [qw(kept_alive local_address local_port original_remote_address remote_port)];
 has req => sub { Mojo::Message::Request->new };
@@ -36,7 +36,18 @@ sub remote_address {
   return $self->original_remote_address unless $self->req->reverse_proxy;
 
   # Reverse proxy
-  return ($self->req->headers->header('X-Forwarded-For') // '') =~ /([^,\s]+)$/ ? $1 : $self->original_remote_address;
+  my @addrs = split /\s*,\s*/, ($self->req->headers->header('X-Forwarded-For') // '');
+  my $trusted = $self->req->trusted_proxies;
+  return @addrs ? $addrs[-1] : $self->original_remote_address unless @$trusted;
+
+  push @addrs, $self->original_remote_address;
+  ADDR: for my $addr (reverse @addrs) {
+    for my $network (@$trusted) {
+      next ADDR if network_contains($network, $addr);
+    }
+    return $addr;
+  }
+  return $addrs[0];
 }
 
 sub result {
@@ -242,8 +253,11 @@ False, this is not a L<Mojo::Transaction::WebSocket> object.
   my $address = $tx->remote_address;
   $tx         = $tx->remote_address('127.0.0.1');
 
-Same as L</"original_remote_address"> or the last value of the C<X-Forwarded-For> header if L</"req"> has been
-performed through a reverse proxy.
+Same as L</"original_remote_address"> unless the L</"req"> has been performed via a
+L<Mojo::Message::Request/reverse_proxy>. If so then the last value of C<X-Forwarded-For> header is returned.
+Additionally if L<Mojo::Message::Request/trusted_proxies> are also provided then the original address must be trusted
+and any C<X-Forwarded-For> entries that are trusted are ignored, returning the last untrusted address or the first
+address if all are trusted.
 
 =head2 result
 
