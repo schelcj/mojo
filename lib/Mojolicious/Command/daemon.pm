@@ -19,9 +19,11 @@ sub run {
     'k|keep-alive-timeout=i' => sub { $daemon->keep_alive_timeout($_[1]) },
     'l|listen=s'             => \my @listen,
     'p|proxy'                => sub { $daemon->reverse_proxy(1) },
-    'r|requests=i'           => sub { $daemon->max_requests($_[1]) };
+    'r|requests=i'           => sub { $daemon->max_requests($_[1]) },
+    't|trusted-proxy=s'      => \my @trusted;
 
   $daemon->listen(\@listen) if @listen;
+  $daemon->trusted_proxies(\@trusted) if @trusted;
   $daemon->run;
 }
 
@@ -42,6 +44,7 @@ Mojolicious::Command::daemon - Daemon command
     ./myapp.pl daemon -l http://127.0.0.1:8080 -l https://[::]:8081
     ./myapp.pl daemon -l 'https://*:443?cert=./server.crt&key=./server.key'
     ./myapp.pl daemon -l http+unix://%2Ftmp%2Fmyapp.sock
+    ./myapp.pl prefork -l http://127.0.0.1:8080 -t 127.0/8 -t 192.168.0/16
 
   Options:
     -b, --backlog <size>                 Listen backlog size, defaults to
@@ -67,6 +70,8 @@ Mojolicious::Command::daemon - Daemon command
                                          MOJO_REVERSE_PROXY
     -r, --requests <number>              Maximum number of requests per
                                          keep-alive connection, defaults to 100
+    -t, --trusted-proxy <network>        One or more trusted proxy addresses or
+                                         networks, implies --proxy
 
 =head1 DESCRIPTION
 

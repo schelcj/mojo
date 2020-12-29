@@ -26,9 +26,11 @@ sub run {
     'p|proxy'                => sub { $prefork->reverse_proxy(1) },
     'r|requests=i'           => sub { $prefork->max_requests($_[1]) },
     's|spare=i'              => sub { $prefork->spare($_[1]) },
+    't|trusted-proxy=s'      => \my @trusted,
     'w|workers=i'            => sub { $prefork->workers($_[1]) };
 
-  $prefork->listen(\@listen) if @listen;
+  $prefork->listen(\@listen)           if @listen;
+  $prefork->trusted_proxies(\@trusted) if @trusted;
   $prefork->run;
 }
 
@@ -49,6 +51,7 @@ Mojolicious::Command::prefork - Pre-fork command
     ./myapp.pl prefork -l http://127.0.0.1:8080 -l https://[::]:8081
     ./myapp.pl prefork -l 'https://*:443?cert=./server.crt&key=./server.key'
     ./myapp.pl prefork -l http+unix://%2Ftmp%2Fmyapp.sock -w 12
+    ./myapp.pl prefork -l http://127.0.0.1:8080 -t 127.0/8 -t 192.168.0/16
 
   Options:
     -a, --accepts <number>               Number of connections for workers to
@@ -83,6 +86,8 @@ Mojolicious::Command::prefork - Pre-fork command
                                          keep-alive connection, defaults to 100
     -s, --spare <number>                 Temporarily spawn up to this number of
                                          additional workers, defaults to 2
+    -t, --trusted-proxy <network>        One or more trusted proxy addresses or
+                                         networks, implies --proxy
     -w, --workers <number>               Number of workers, defaults to 4
 
 =head1 DESCRIPTION
